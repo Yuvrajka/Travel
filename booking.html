@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Your Tour - Shiv Shankar Travellers</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* Add your styling here */
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { padding: 10px 20px; background: #007BFF; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>Complete Your Booking</h2>
+    <form id="booking-form">
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="phone">Phone No</label>
+            <input type="tel" id="phone" name="phone" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+         <div class="form-group">
+            <label for="amount">Amount (INR)</label>
+            <input type="number" id="amount" name="amount" value="5000" required>
+        </div>
+        <button type="submit">Pay Now</button>
+    </form>
+
+    <script>
+        document.getElementById('booking-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const amount = document.getElementById('amount').value;
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+
+            // Step 1: Call your backend to create the order
+            const orderResponse = await fetch('http://localhost:5000/api/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: amount, currency: 'INR' })
+            });
+
+            const orderData = await orderResponse.json();
+
+            // Step 2: Configure the Razorpay Checkout
+            const options = {
+                "key": "rzp_test_TEzOspe3uDdV0Z", 
+                "amount": orderData.amount, 
+                "currency": orderData.currency,
+                "name": "Shiv Shankar Travellers",
+                "description": "Tour Booking Payment",
+                "order_id": orderData.id,
+                "handler": async function (response) {
+                    
+                    // Step 3: Verify the payment signature on your backend
+                    const verifyResponse = await fetch('http://localhost:5000/api/verify-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        })
+                    });
+
+                    const verifyData = await verifyResponse.json();
+
+                    if (verifyData.status === 'success') {
+                        alert("Payment successful!");
+                    } else {
+                        alert("Payment verification failed.");
+                    }
+                },
+                "prefill": {
+                    "name": name,
+                    "email": email,
+                    "contact": phone
+                },
+                "theme": {
+                    "color": "#3399cc"
+                }
+            };
+            const rzp1 = new Razorpay(options);
+            rzp1.open();
+        });
+    </script>
+</body>
+</html>
